@@ -1,33 +1,48 @@
-var streamUrl = "https://streamer.cryptocompare.com/";
+var streamUrl = "ws://localhost:7000";
 var fsym = "BTC";
 var tsym = "USD";
 var currentSubs;
 var currentSubsText = "";
 var dataUrl = "https://min-api.cryptocompare.com/data/subs?fsym=" + fsym + "&tsyms=" + tsym;
-var socket = io(streamUrl);
+var socket = new WebSocket(streamUrl);
 
-$.getJSON(dataUrl, function(data) {
-	currentSubs = data['USD']['TRADES'];
-	console.log(currentSubs);
-	for (var i = 0; i < currentSubs.length; i++) {
-		currentSubsText += currentSubs[i] + ", ";
-	}
-	$('#sub-exchanges').text(currentSubsText);
-	socket.emit('SubAdd', { subs: currentSubs });
-});
+function connect() {
+    socket.onopen = function() {
+        $.getJSON(dataUrl, function(data) {
+            currentSubs = data['USD']['TRADES'];
+            console.log(currentSubs);
+            for (var i = 0; i < currentSubs.length; i++) {
+                currentSubsText += currentSubs[i] + ", ";
+            }
+            $('#sub-exchanges').text(currentSubsText);
 
-socket.on('m', function(currentData) {
-	var tradeField = currentData.substr(0, currentData.indexOf("~"));
-	if (tradeField == CCC.STATIC.TYPE.TRADE) {
-		transformData(currentData);
-	}
-});
+            var objectToSend = {
+                t:'SubAdd',
+                subs:currentSubs
+            };
+
+            socket.send(JSON.stringify(objectToSend));
+        });
+    }
+
+    socket.onmessage = function(currentData) {
+        const message = currentData.data;
+        console.log(message);
+        var tradeField = message.substr(0, message.indexOf("~"));
+        if (tradeField == CCC.STATIC.TYPE.TRADE) {
+            transformData(message);
+        }
+    };
+
+    socket.onerror = function(error) {
+        console.log(error);
+    }
+}
 
 var transformData = function(data) {
 	var coinfsym = CCC.STATIC.CURRENCY.getSymbol(fsym);
 	var cointsym = CCC.STATIC.CURRENCY.getSymbol(tsym)
 	var incomingTrade = CCC.TRADE.unpack(data);
-	console.log(incomingTrade);
 	var newTrade = {
 		Market: incomingTrade['M'],
 		Type: incomingTrade['T'],
@@ -67,15 +82,33 @@ $('#unsubscribe').click(function() {
 	$('#subscribe').removeClass('subon');
 	$(this).addClass('subon');
 	$('#stream-text').text('Stream stopped');
-	socket.emit('SubRemove', { subs: currentSubs });
+
+    var objectToSend = {
+        t:'SubRemove',
+        subs:currentSubs
+    };
+    socket.send(JSON.stringify(objectToSend));
+
 	$('#sub-exchanges').text("");
 });
 
 $('#subscribe').click(function() {
-	console.log('Subscribing to streamers')
 	$('#unsubscribe').removeClass('subon');
 	$(this).addClass('subon');
 	$('#stream-text').text("Streaming...");
-	socket.emit('SubAdd', { subs: currentSubs });
+    
+    if (socket.readyState !== 1) {
+        socket = new WebSocket(streamUrl);
+        connect();
+    }
+
+    var objectToSend = {
+        t:'SubAdd',
+        subs:currentSubs
+    };
+	console.log('Subscribing to streamers')
+    socket.send(JSON.stringify(objectToSend));
 	$('#sub-exchanges').text(currentSubsText);
 });
+
+connect();

@@ -1,8 +1,7 @@
 $(document).ready(function() {
 
 	var currentPrice = {};
-    var socket = new WebSocket('ws://localhost:7000');
-	// var socket = io.connect('https://streamer.cryptocompare.com/');
+    var socket = new WebSocket('wss://devstreamer-pro.cryptocompare.com/v2');
 
 	//Format: {SubscriptionId}~{ExchangeName}~{FromSymbol}~{ToSymbol}
 	//Use SubscriptionId 0 for TRADE, 2 for CURRENT, 5 for CURRENTAGG eg use key '5~CCCAGG~BTC~USD' to get aggregated data from the CCCAGG exchange 
@@ -10,7 +9,6 @@ $(document).ready(function() {
 	//For aggregate quote updates use CCCAGG ags market
     
     var objectToSend = {
-        auth:'3f7255174a867d20eb76aaf3f06d53f533a7236e2b043e7cdcc832467f04010c',
         t:'SubAdd',
         subs:["5~CCCAGG~BTC~USD", "5~CCCAGG~BTC~GBP"]
     };
